@@ -1,0 +1,42 @@
+  .washi-grain{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+    opacity:.05;
+  }
+  .name-underline::after{
+    content:"";
+    position:absolute;
+    left:0; right:0;
+    bottom:-12px;
+    height:12px;
+    border-radius:999px;
+    transform:skewX(-10deg);
+    background:linear-gradient(90deg, rgba(230,204,161,0), rgba(230,204,161,.70), rgba(230,204,161,0));
+    opacity:.95;
+  }
+
+  /* ===== Scroll Reveal (super light) ===== */
+  .reveal{
+    opacity:0;
+    transform:translateY(12px);
+    transition:opacity 600ms ease, transform 600ms ease;
+    will-change:opacity, transform;
+  }
+  .reveal.is-in{
+    opacity:1;
+    transform:translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{
+      opacity:1 !important;
+      transform:none !important;
+      transition:none !important;
+    }
+  }
+
+  /* ===== Qualification tab panel fade ===== */
+  .qual-panel{
+    transition:opacity 220ms ease;
+  }
+  .qual-panel.is-fading{
+    opacity:0;
+  }

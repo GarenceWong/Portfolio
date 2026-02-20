@@ -1,5 +1,7 @@
-// ===== Base UI =====
+// ===== Base UI + Animations =====
 (() => {
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   const yearEl = document.getElementById("year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
@@ -12,7 +14,6 @@
       burger.setAttribute("aria-expanded", isOpen ? "true" : "false");
     });
 
-    // Close menu when a link is clicked
     mobileMenu.addEventListener("click", (e) => {
       const a = e.target.closest("a");
       if (!a) return;
@@ -32,6 +33,29 @@
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
   }
+
+  const initScrollReveal = () => {
+    const els = Array.from(document.querySelectorAll(".reveal"));
+    if (els.length === 0) return;
+
+    if (prefersReduced || !("IntersectionObserver" in window)) {
+      els.forEach((el) => el.classList.add("is-in"));
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries, obs) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-in");
+          obs.unobserve(entry.target);
+        });
+      },
+      { root: null, threshold: 0.12, rootMargin: "0px 0px -10% 0px" }
+    );
+
+    els.forEach((el) => io.observe(el));
+  };
 
   // ===== Qualification Tabs =====
   const initQualificationTabs = () => {
@@ -64,13 +88,6 @@
       });
     };
 
-    const showPanel = (name) => {
-      const isExp = name === "experience";
-      exp.classList.toggle("hidden", !isExp);
-      edu.classList.toggle("hidden", isExp);
-      setTabStyles(name);
-    };
-
     const lockHeight = () => {
       const expWasHidden = exp.classList.contains("hidden");
       const eduWasHidden = edu.classList.contains("hidden");
@@ -87,31 +104,78 @@
 
     const relock = () => requestAnimationFrame(lockHeight);
 
+    const fadeSwap = (fromEl, toEl) => {
+      if (prefersReduced) {
+        fromEl.classList.add("hidden");
+        toEl.classList.remove("hidden");
+        return;
+      }
+
+      fromEl.classList.add("is-fading");
+      const onDone = () => {
+        fromEl.removeEventListener("transitionend", onDone);
+        fromEl.classList.add("hidden");
+        fromEl.classList.remove("is-fading");
+
+        toEl.classList.remove("hidden");
+        void toEl.offsetHeight;
+        toEl.classList.remove("is-fading");
+      };
+      fromEl.addEventListener("transitionend", onDone);
+
+      toEl.classList.add("is-fading");
+    };
+
+    const showPanel = (name) => {
+      const isExp = name === "experience";
+      setTabStyles(name);
+
+      if (isExp) {
+        if (!exp.classList.contains("hidden")) return;
+        fadeSwap(edu, exp);
+      } else {
+        if (!edu.classList.contains("hidden")) return;
+        fadeSwap(exp, edu);
+      }
+
+      relock();
+    };
+
     tabs.forEach((btn) => {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab || "experience";
         showPanel(tab);
-        relock();
       });
     });
 
-    showPanel("experience");
+    setTabStyles("experience");
+    edu.classList.add("hidden");
+    exp.classList.remove("hidden");
+    exp.classList.remove("is-fading");
+    edu.classList.add("is-fading");
+
     relock();
     window.addEventListener("resize", relock);
     window.addEventListener("load", relock);
   };
 
-  initQualificationTabs();
+  // ===== Contact Form (still demo) =====
+  const initContactForm = () => {
+    const form = document.getElementById("contactForm");
+    const note = document.getElementById("formNote");
 
-  // ===== Contact Form =====
-  const form = document.getElementById("contactForm");
-  const note = document.getElementById("formNote");
+    if (!form) return;
 
-  if (form) {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       if (note) note.textContent = "Thanks! This form is demo-only (no backend yet).";
       form.reset();
     });
-  }
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initScrollReveal();
+    initQualificationTabs();
+    initContactForm();
+  });
 })();
