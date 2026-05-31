@@ -147,7 +147,7 @@
       description:
         "A Pokémon guessing game where players identify Pokémon from silhouettes. Test your Pokédex knowledge across all generations with score tracking and hints.",
       code: "https://github.com/GarenceWong/PokeGuesser",
-      demo: "https://garencewong.github.io/PokeGuesser/"
+      demo: "https://pokeguesserr.vercel.app/"
     },
     {
       title: "Witch Hat Battle",
