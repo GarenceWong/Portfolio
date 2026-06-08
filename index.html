@@ -101,7 +101,7 @@
     <div class="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center text-center gap-5 pt-[72px] md:pt-[96px] pb-12">
       <h1 class="m-0 font-black tracking-[-1px] leading-[1.06] text-[clamp(2.8rem,5.4vw,4.6rem)]">
         Hi, I’m
-        <span class="relative inline-block name-underline">Garence Wong</span>
+        <span id="heroName" class="relative inline-block name-underline">Garence Wong</span>
       </h1>
 
       <p class="mt-1 font-extrabold tracking-[.05em] text-ink/75 text-[clamp(1.12rem,1.7vw,1.45rem)]">
@@ -161,7 +161,7 @@
 
 
 <!-- ===== ABOUT ===== -->
-<section id="about" class="py-20 reveal">
+<section id="about" class="py-20 about-float">
   <div class="mx-auto w-[min(1120px,calc(100%-40px))]">
 
     <div class="text-center mb-10">
@@ -343,7 +343,7 @@
         type="button"
         data-tab="experience"
         class="qual-tab inline-flex items-center justify-center px-5 py-2.5 rounded-full font-extrabold
-               border border-ink/12 bg-white/10 text-ink hover:bg-white/20 transition"
+               border border-ink/12 bg-white text-ink hover:bg-warm/20 transition"
         aria-selected="true"
       >
         Experience
@@ -353,7 +353,7 @@
         type="button"
         data-tab="education"
         class="qual-tab inline-flex items-center justify-center px-5 py-2.5 rounded-full font-extrabold
-               border border-ink/12 bg-white/10 text-ink hover:bg-white/20 transition"
+               border border-ink/12 bg-white text-ink hover:bg-warm/20 transition"
         aria-selected="false"
       >
         Education

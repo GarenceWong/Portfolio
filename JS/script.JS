@@ -34,6 +34,89 @@
     onScroll();
   }
 
+  // ===== Smooth scroll for anchor links =====
+  const initSmoothScroll = () => {
+    const links = Array.from(document.querySelectorAll('a[href^="#"]'));
+    links.forEach((link) => {
+      link.addEventListener("click", (e) => {
+        const id = link.getAttribute("href");
+        const target = id && id.length > 1 ? document.querySelector(id) : null;
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  };
+
+  // ===== Hero — typewriter reveal on the name =====
+  // Types "Garence Wong" out character-by-character on load, with a
+  // blinking cursor (a real element, see .type-cursor) that disappears
+  // shortly after the name finishes typing.
+  const initHeroNameTypewriter = () => {
+    const nameEl = document.getElementById("heroName");
+    if (!nameEl) return;
+
+    const text = nameEl.textContent;
+    nameEl.textContent = "";
+
+    const textNode = document.createTextNode("");
+    const cursor = document.createElement("span");
+    cursor.className = "type-cursor";
+    cursor.setAttribute("aria-hidden", "true");
+
+    nameEl.appendChild(textNode);
+    nameEl.appendChild(cursor);
+
+    const TYPE_SPEED_MS = 90;
+    const START_DELAY_MS = 350;
+
+    setTimeout(() => {
+      let i = 0;
+      const timer = setInterval(() => {
+        i += 1;
+        textNode.nodeValue = text.slice(0, i);
+        if (i >= text.length) {
+          clearInterval(timer);
+          setTimeout(() => cursor.remove(), 1200);
+        }
+      }, TYPE_SPEED_MS);
+    }, START_DELAY_MS);
+  };
+
+  // ===== Hero — drifting sakura petals =====
+  // Generates a handful of petals with randomized position, size, sway
+  // distance, speed, and start offset, then lets .sakura-petal's CSS
+  // animation (sakuraFall) carry them down through the hero, looping.
+  const initSakuraPetals = () => {
+    const hero = document.getElementById("home");
+    if (!hero || hero.querySelector(".sakura-layer")) return;
+
+    const layer = document.createElement("div");
+    layer.className = "sakura-layer";
+    layer.setAttribute("aria-hidden", "true");
+    hero.appendChild(layer);
+
+    const PETAL_COUNT = 14;
+    for (let i = 0; i < PETAL_COUNT; i += 1) {
+      const petal = document.createElement("span");
+      petal.className = "sakura-petal";
+
+      const size = 11 + Math.random() * 11;     // 11–22px
+      const duration = 9 + Math.random() * 8;   // 9–17s
+      const delay = -Math.random() * duration;  // start mid-flight, not all at once
+      const drift = 30 + Math.random() * 70;    // 30–100px sideways sway
+
+      petal.style.left = `${Math.random() * 100}%`;
+      petal.style.width = `${size}px`;
+      petal.style.height = `${size * 0.8}px`;
+      petal.style.setProperty("--drift", `${drift}px`);
+      petal.style.animationDuration = `${duration}s`;
+      petal.style.animationDelay = `${delay}s`;
+
+      layer.appendChild(petal);
+    }
+  };
+
   const initScrollReveal = () => {
     const els = Array.from(document.querySelectorAll(".reveal"));
     if (els.length === 0) return;
@@ -57,6 +140,52 @@
     els.forEach((el) => io.observe(el));
   };
 
+  // ===== About — directional float reveal =====
+  // Floats up into place when scrolled down to from the hero, and floats
+  // down into place when scrolled back up to from Featured Projects.
+  const initAboutFloat = () => {
+    const about = document.getElementById("about");
+    if (!about) return;
+
+    if (!("IntersectionObserver" in window)) {
+      about.classList.add("is-in");
+      return;
+    }
+
+    let lastY = window.scrollY;
+    let direction = "down";
+    window.addEventListener(
+      "scroll",
+      () => {
+        const y = window.scrollY;
+        if (y !== lastY) direction = y > lastY ? "down" : "up";
+        lastY = y;
+      },
+      { passive: true }
+    );
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            about.classList.remove("is-in");
+            return;
+          }
+          // Set the entry offset to match scroll direction, applying it
+          // without a transition so the (invisible, opacity:0) jump isn't seen.
+          about.style.transitionProperty = "none";
+          about.style.setProperty("--float-from", direction === "down" ? "72px" : "-72px");
+          void about.offsetHeight;
+          about.style.transitionProperty = "";
+          requestAnimationFrame(() => about.classList.add("is-in"));
+        });
+      },
+      { root: null, threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+    );
+
+    io.observe(about);
+  };
+
   // ===== Qualification Tabs =====
   const initQualificationTabs = () => {
     const wrap = document.getElementById("qual-panels-wrap");
@@ -73,13 +202,13 @@
         btn.classList.toggle("bg-ink/90", isActive);
         btn.classList.toggle("text-white/95", isActive);
         btn.classList.toggle("shadow-soft", isActive);
-        btn.classList.toggle("bg-white/10", !isActive);
+        btn.classList.toggle("bg-white", !isActive);
         btn.classList.toggle("text-ink", !isActive);
         if (isActive) {
           btn.classList.add("hover:bg-ink");
-          btn.classList.remove("hover:bg-white/20");
+          btn.classList.remove("hover:bg-warm/20");
         } else {
-          btn.classList.add("hover:bg-white/20");
+          btn.classList.add("hover:bg-warm/20");
           btn.classList.remove("hover:bg-ink");
         }
       });
@@ -175,7 +304,7 @@
     let active = 0;
 
     stage.innerHTML = PROJECTS.map((p, i) => `
-      <article class="cf-card flex flex-col gap-4 p-5 rounded-xl2 border border-ink/10 bg-white/20 shadow-soft"
+      <article class="cf-card tilt-card flex flex-col gap-4 p-5 rounded-xl2 border border-ink/10 bg-white/20 shadow-soft"
                data-index="${i}" tabindex="0" role="group" aria-label="${p.title}">
         <div class="h-52 md:h-60 rounded-2xl border border-ink/10 overflow-hidden bg-white/10">
           <img src="${p.image}" alt="${p.title}" class="w-full h-full object-cover" />
@@ -250,6 +379,39 @@
       });
     });
 
+    // Touch swipe support — swipe left/right on the stage to move through projects.
+    let touchStartX = 0;
+    stage.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    stage.addEventListener("touchend", (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) {
+        if (dx < 0) go(active + 1);
+        else go(active - 1);
+      }
+    });
+
+    // 3D tilt on hover — composed on top of the carousel's own translateX/scale
+    // transform (captured on enter) so the card keeps its carousel position.
+    cards.forEach((c) => {
+      let baseTransform = "";
+      c.addEventListener("mouseenter", () => {
+        baseTransform = c.style.transform || "";
+      });
+      c.addEventListener("mousemove", (e) => {
+        const rect = c.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width - 0.5;
+        const relY = (e.clientY - rect.top) / rect.height - 0.5;
+        const rotateY = relX * 12;
+        const rotateX = relY * -12;
+        c.style.transform = `${baseTransform} perspective(600px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+      });
+      c.addEventListener("mouseleave", () => {
+        c.style.transform = baseTransform;
+      });
+    });
+
     window.addEventListener("resize", render);
     window.addEventListener("load", render);
     render();
@@ -309,7 +471,11 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
+    initSmoothScroll();
+    initHeroNameTypewriter();
+    initSakuraPetals();
     initScrollReveal();
+    initAboutFloat();
     initProjects();
     initQualificationTabs();
     initContactForm();
