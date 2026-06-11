@@ -34,6 +34,39 @@
     onScroll();
   }
 
+  // ===== Fixed header — glass on scroll + scrollspy =====
+  const initHeader = () => {
+    const header = document.getElementById("siteHeader");
+    if (header) {
+      const onScroll = () => header.classList.toggle("is-scrolled", window.scrollY > 24);
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    }
+
+    // Scrollspy — highlight the nav link of the section in view.
+    const links = Array.from(document.querySelectorAll("#navLinks .nav-link"));
+    if (links.length === 0 || !("IntersectionObserver" in window)) return;
+
+    const map = new Map();
+    links.forEach((link) => {
+      const sec = document.querySelector(link.getAttribute("href"));
+      if (sec) map.set(sec, link);
+    });
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          links.forEach((l) => l.classList.remove("is-active"));
+          map.get(entry.target).classList.add("is-active");
+        });
+      },
+      // A band around the middle of the viewport decides the active section.
+      { rootMargin: "-35% 0px -55% 0px" }
+    );
+    map.forEach((_, sec) => io.observe(sec));
+  };
+
   // ===== Smooth scroll for anchor links =====
   const initSmoothScroll = () => {
     const links = Array.from(document.querySelectorAll('a[href^="#"]'));
@@ -83,10 +116,11 @@
     }, START_DELAY_MS);
   };
 
-  // ===== Hero — drifting sakura petals =====
-  // Generates a handful of petals with randomized position, size, sway
-  // distance, speed, and start offset, then lets .sakura-petal's CSS
-  // animation (sakuraFall) carry them down through the hero, looping.
+  // ===== Hero — drifting sakura petals (cursor-reactive) =====
+  // Each petal is wrapped in a .sakura-drift span: the inner petal runs the
+  // sakuraFall animation while the wrapper takes a repel offset when the
+  // cursor gets close, so falling and dodging never fight over transform.
+  // The hero background also gets a soft mouse parallax here.
   const initSakuraPetals = () => {
     const hero = document.getElementById("home");
     if (!hero || hero.querySelector(".sakura-layer")) return;
@@ -96,8 +130,12 @@
     layer.setAttribute("aria-hidden", "true");
     hero.appendChild(layer);
 
+    const petals = [];
     const PETAL_COUNT = 14;
     for (let i = 0; i < PETAL_COUNT; i += 1) {
+      const wrap = document.createElement("span");
+      wrap.className = "sakura-drift";
+
       const petal = document.createElement("span");
       petal.className = "sakura-petal";
 
@@ -106,15 +144,138 @@
       const delay = -Math.random() * duration;  // start mid-flight, not all at once
       const drift = 30 + Math.random() * 70;    // 30–100px sideways sway
 
-      petal.style.left = `${Math.random() * 100}%`;
+      wrap.style.left = `${Math.random() * 100}%`;
       petal.style.width = `${size}px`;
       petal.style.height = `${size * 0.8}px`;
       petal.style.setProperty("--drift", `${drift}px`);
       petal.style.animationDuration = `${duration}s`;
       petal.style.animationDelay = `${delay}s`;
 
-      layer.appendChild(petal);
+      wrap.appendChild(petal);
+      layer.appendChild(wrap);
+      petals.push({ wrap, petal });
     }
+
+    if (prefersReduced || !window.matchMedia("(pointer:fine)").matches) return;
+
+    const bg = document.getElementById("heroBg");
+    const REPEL_RADIUS = 130;
+    const REPEL_MAX = 56;
+
+    let raf = 0;
+    hero.addEventListener("mousemove", (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+
+        petals.forEach(({ wrap, petal }) => {
+          // The petal's rect reflects its mid-animation position.
+          const r = petal.getBoundingClientRect();
+          const dx = r.left + r.width / 2 - e.clientX;
+          const dy = r.top + r.height / 2 - e.clientY;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < REPEL_RADIUS && dist > 0.01) {
+            const push = (1 - dist / REPEL_RADIUS) * REPEL_MAX;
+            wrap.style.transform =
+              `translate(${((dx / dist) * push).toFixed(1)}px, ${((dy / dist) * push).toFixed(1)}px)`;
+          } else if (wrap.style.transform) {
+            wrap.style.transform = "";
+          }
+        });
+
+        if (bg) {
+          const relX = e.clientX / window.innerWidth - 0.5;
+          const relY = e.clientY / window.innerHeight - 0.5;
+          bg.style.transform =
+            `translate3d(${(relX * -14).toFixed(1)}px, ${(relY * -10).toFixed(1)}px, 0) scale(1.05)`;
+        }
+      });
+    });
+
+    hero.addEventListener("mouseleave", () => {
+      petals.forEach(({ wrap }) => { wrap.style.transform = ""; });
+      if (bg) bg.style.transform = "";
+    });
+  };
+
+  // ===== Staggered reveal — cascade a group's children into view =====
+  const initStagger = () => {
+    const groups = Array.from(document.querySelectorAll(".stagger"));
+    if (groups.length === 0) return;
+
+    groups.forEach((g) => {
+      Array.from(g.children).forEach((child, i) => {
+        child.style.setProperty("--d", `${Math.min(i, 6) * 90}ms`);
+      });
+    });
+
+    if (prefersReduced || !("IntersectionObserver" in window)) {
+      groups.forEach((g) => g.classList.add("is-in"));
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries, obs) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-in");
+          obs.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    groups.forEach((g) => io.observe(g));
+  };
+
+  // ===== Magnetic elements — pull gently toward the cursor =====
+  const initMagnetic = () => {
+    if (prefersReduced || !window.matchMedia("(pointer:fine)").matches) return;
+
+    document.querySelectorAll(".magnetic").forEach((el) => {
+      el.addEventListener("mousemove", (e) => {
+        const r = el.getBoundingClientRect();
+        const x = e.clientX - r.left - r.width / 2;
+        const y = e.clientY - r.top - r.height / 2;
+        el.style.transform = `translate(${(x * 0.35).toFixed(1)}px, ${(y * 0.35).toFixed(1)}px)`;
+      });
+      el.addEventListener("mouseleave", () => {
+        el.style.transform = "";
+      });
+    });
+  };
+
+  // ===== Cursor ring — trailing accent that grows over interactive elements =====
+  const initCursorRing = () => {
+    if (prefersReduced || !window.matchMedia("(pointer:fine)").matches) return;
+
+    const ring = document.createElement("div");
+    ring.className = "cursor-ring";
+    ring.setAttribute("aria-hidden", "true");
+    document.body.appendChild(ring);
+
+    let mouseX = -100, mouseY = -100;
+    let ringX = -100, ringY = -100;
+
+    document.addEventListener("mousemove", (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      ring.classList.add("is-visible");
+    });
+    document.addEventListener("mouseleave", () => ring.classList.remove("is-visible"));
+
+    document.addEventListener("mouseover", (e) => {
+      ring.classList.toggle("is-hover", !!e.target.closest("a, button"));
+    });
+
+    const follow = () => {
+      // Lerp toward the cursor for the trailing feel.
+      ringX += (mouseX - ringX) * 0.18;
+      ringY += (mouseY - ringY) * 0.18;
+      ring.style.transform = `translate3d(${ringX.toFixed(1)}px, ${ringY.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      requestAnimationFrame(follow);
+    };
+    requestAnimationFrame(follow);
   };
 
   const initScrollReveal = () => {
@@ -307,7 +468,7 @@
       <article class="cf-card tilt-card flex flex-col gap-4 p-5 rounded-xl2 border border-ink/10 bg-white/20 shadow-soft"
                data-index="${i}" tabindex="0" role="group" aria-label="${p.title}">
         <div class="h-52 md:h-60 rounded-2xl border border-ink/10 overflow-hidden bg-white/10">
-          <img src="${p.image}" alt="${p.title}" class="w-full h-full object-cover" />
+          <img src="${p.image}" alt="${p.title}" loading="lazy" decoding="async" class="w-full h-full object-cover" />
         </div>
         <h3 class="font-black text-lg truncate">${p.title}</h3>
         <p class="text-ink/65 line-clamp-3">${p.description}</p>
@@ -379,6 +540,17 @@
       });
     });
 
+    // Arrow-key navigation while the carousel is on screen (and the user
+    // isn't typing in the contact form).
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.target.closest && e.target.closest("input, textarea, select")) return;
+      const rect = stage.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) return;
+      e.preventDefault();
+      go(active + (e.key === "ArrowRight" ? 1 : -1));
+    });
+
     // Touch swipe support — swipe left/right on the stage to move through projects.
     let touchStartX = 0;
     stage.addEventListener("touchstart", (e) => {
@@ -437,11 +609,6 @@
       e.preventDefault();
 
       const data = new FormData(form);
-      if (data.get("access_key") === "YOUR_ACCESS_KEY_HERE") {
-        setNote("Form isn't configured yet — add your Web3Forms access key.", false);
-        return;
-      }
-
       if (btn) btn.disabled = true;
       const originalText = btnText ? btnText.textContent : "";
       if (btnText) btnText.textContent = "Sending…";
@@ -471,11 +638,15 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
+    initHeader();
     initSmoothScroll();
     initHeroNameTypewriter();
     initSakuraPetals();
     initScrollReveal();
+    initStagger();
     initAboutFloat();
+    initMagnetic();
+    initCursorRing();
     initProjects();
     initQualificationTabs();
     initContactForm();
